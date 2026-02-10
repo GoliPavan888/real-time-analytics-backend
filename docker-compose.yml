@@ -1,0 +1,43 @@
+version: '3.8'
+services:
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      APP_PORT: "8000"
+      CACHE_TTL_SECONDS: "300"
+      RATE_LIMIT_THRESHOLD: "5"
+      RATE_LIMIT_WINDOW_SECONDS: "60"
+      CIRCUIT_BREAKER_FAILURE_THRESHOLD: "3"
+      CIRCUIT_BREAKER_RESET_TIMEOUT: "10"
+      EXTERNAL_SERVICE_FAILURE_RATE: "0.1"
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request, sys; urllib.request.urlopen('http://127.0.0.1:8000/health')\" || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:6-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  test-runner:
+    build: .
+    depends_on:
+      redis:
+        condition: service_healthy
+      app:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-c", "python -m pip install -r requirements.txt && python -m pytest -q"]
