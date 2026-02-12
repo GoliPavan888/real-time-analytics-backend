@@ -21,7 +21,6 @@ async def startup_event():
     metrics_module.redis_client = redis_client
     metrics_module.cache_service = CacheService(redis_client)
 
-    # ✅ match settings variable names
     metrics_module.rate_limiter = RateLimiter(
         redis_client,
         threshold=settings.rate_limit_threshold,
