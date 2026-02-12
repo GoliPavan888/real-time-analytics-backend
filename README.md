@@ -1,145 +1,214 @@
 # Real-Time Analytics Backend
 
-A robust backend API for a simulated real-time analytics service, built with FastAPI, Redis, and Docker. Implements advanced caching, rate limiting, and circuit breaker patterns for high availability and fault tolerance.
+A robust backend API for a simulated real-time analytics service built using **FastAPI**, **Redis**, and **Docker**. The system demonstrates production-grade backend practices including caching, rate limiting, and circuit breaker patterns to ensure high availability and resilience.
+
+This project simulates a backend powering a real-time analytics dashboard capable of handling load spikes and external service failures.
+
+---
 
 ## Features
 
-- **RESTful API**: POST /api/metrics for ingesting metrics, GET /api/metrics/summary for aggregated data
-- **Redis Caching**: Read-through caching for summary endpoints with configurable TTL
-- **Rate Limiting**: IP-based rate limiting on metric ingestion using Redis
-- **Circuit Breaker**: Protects external service calls with configurable failure thresholds
-- **Docker Containerization**: Fully containerized with docker-compose for easy deployment
-- **Health Checks**: Built-in health endpoints for monitoring
-- **Comprehensive Tests**: Unit and integration tests covering all core functionality
+- RESTful API for metric ingestion and analytics retrieval
+- Redis-backed read-through caching
+- IP-based rate limiting using Redis
+- Circuit breaker pattern for external service protection
+- Docker containerization with docker-compose orchestration
+- Health check endpoints
+- Unit and integration tests
+- Configurable environment variables
+- Auto-generated API documentation
+
+---
+
+## Tech Stack
+
+- FastAPI (Python)
+- Redis
+- Docker & Docker Compose
+- Pytest
+- Async Redis client
+
+---
 
 ## Quick Start
 
 ### Prerequisites
-- Docker and Docker Compose installed
+Install:
 
-### Setup
-1. Clone the repository
-2. Navigate to the project directory
-3. Copy environment variables: `cp .env.example .env` (optional, defaults are set)
-4. Run with Docker Compose: `docker-compose up --build`
+- Docker
+- Docker Compose
 
-The API will be available at http://localhost:8000
+---
 
-## API Documentation
+### Setup & Run
 
-### POST /api/metrics
-Ingest a new metric.
+Clone repository:
 
-**Request Body:**
-```json
-{
-  "timestamp": "2023-01-01T00:00:00Z",
-  "value": 75.5,
-  "type": "cpu_usage"
-}
+```bash
+git clone <your-repo-url>
+cd real-time-analytics-backend
 ```
 
-**Response:** 201 Created
-```json
-{
-  "message": "Metric received"
-}
+Create environment file (optional):
+
+**Linux/macOS:**
+
+```bash
+cp .env.example .env
 ```
 
-Rate limited to 5 requests per minute per IP. Exceeding returns 429 with Retry-After header.
+**Windows:**
 
-### GET /api/metrics/summary
-Retrieve aggregated metrics summary.
-
-**Query Parameters:**
-- `type`: Metric type (e.g., cpu_usage)
-- `period`: Aggregation period (e.g., daily)
-
-**Response:** 200 OK
-```json
-{
-  "type": "cpu_usage",
-  "period": "daily",
-  "average_value": 75.3,
-  "count": 100,
-  "external_data": {
-    "external_source": "ok",
-    "value": 150
-  }
-}
+```cmd
+copy .env.example .env
 ```
 
-Cached for 5 minutes by default.
+Run services:
 
-### GET /health
-Health check endpoint.
+```bash
+docker-compose up --build
+```
 
-**Response:** 200 OK
+Application becomes available at:
+
+http://localhost:8000
+
+Swagger API docs available at:
+
+http://localhost:8000/docs
+
+## API Endpoints
+
+### Health Check
+
+```bash
+GET /health
+```
+
+Response:
+
 ```json
 {
   "status": "healthy"
 }
 ```
 
+### Ingest Metric
+
+```bash
+POST /api/metrics
+```
+
+Request body:
+
+```json
+{
+  "timestamp": "2026-02-08T10:00:00",
+  "value": 50,
+  "type": "cpu"
+}
+```
+
+Response:
+
+```json
+{
+  "message": "Metric received"
+}
+```
+
+Returns:
+
+- 201 Created on success
+- 429 Too Many Requests if rate limit exceeded
+
+Rate-limited per client IP.
+
+### Metrics Summary
+
+```bash
+GET /api/metrics/summary?type=cpu&period=daily
+```
+
+Example response:
+
+```json
+{
+  "type": "cpu",
+  "period": "daily",
+  "average_value": 50,
+  "count": 1,
+  "external_data": {
+    "external_source": "ok",
+    "value": 170
+  }
+}
+```
+
+Results are cached in Redis for faster repeated responses.
+
 ## Configuration
 
 Environment variables (see .env.example):
 
-- `REDIS_HOST`: Redis host (default: redis)
-- `REDIS_PORT`: Redis port (default: 6379)
-- `APP_PORT`: Application port (default: 8000)
-- `CACHE_TTL_SECONDS`: Cache TTL in seconds (default: 300)
-- `RATE_LIMIT_THRESHOLD`: Requests per window (default: 5)
-- `RATE_LIMIT_WINDOW_SECONDS`: Rate limit window in seconds (default: 60)
-- `CIRCUIT_BREAKER_FAILURE_THRESHOLD`: Failures before opening circuit (default: 3)
-- `CIRCUIT_BREAKER_RESET_TIMEOUT`: Seconds to wait before half-open (default: 10)
-- `EXTERNAL_SERVICE_FAILURE_RATE`: Simulated failure rate (default: 0.1)
+| Variable | Description | Default |
+|----------|-------------|---------|
+| REDIS_HOST | Redis hostname | redis |
+| REDIS_PORT | Redis port | 6379 |
+| APP_PORT | App port | 8000 |
+| CACHE_TTL_SECONDS | Cache lifetime | 300 |
+| RATE_LIMIT_THRESHOLD | Requests per window | 5 |
+| RATE_LIMIT_WINDOW_SECONDS | Window size | 60 |
+| CIRCUIT_BREAKER_FAILURE_THRESHOLD | Failures before open | 3 |
+| CIRCUIT_BREAKER_RESET_TIMEOUT | Reset timeout | 10 |
+| EXTERNAL_SERVICE_FAILURE_RATE | Simulated failure rate | 0.1 |
 
 ## Running Tests
 
-### Unit Tests
+Run all tests:
+
 ```bash
-docker-compose exec app pytest tests/test_rate_limiter.py -v
+docker-compose run --rm test-runner pytest -v
 ```
 
-### Integration Tests
+Run individual tests:
+
 ```bash
-docker-compose exec app pytest tests/test_integration.py -v
+docker-compose run --rm test-runner pytest tests/test_rate_limiter.py -v
 ```
 
-### All Tests
-```bash
-docker-compose exec app pytest tests/ -v
+## Architecture Overview
+
+```
+src/
+ ├── main.py
+ ├── api/
+ │    └── metrics.py
+ ├── services/
+ │    ├── cache_service.py
+ │    ├── rate_limit_service.py
+ │    ├── circuit_breaker_service.py
+ │    └── external_data_simulator.py
+ └── config/
+      └── settings.py
+tests/
+Dockerfile
+docker-compose.yml
 ```
 
-## Architecture
+## Resilience Patterns Implemented
 
-- **src/main.py**: FastAPI application entry point
-- **src/api/metrics.py**: API endpoints
-- **src/services/**: Business logic services (cache, rate limiter, circuit breaker, external simulator)
-- **src/config/settings.py**: Configuration management
-- **tests/**: Unit and integration tests
-- **Dockerfile**: Application containerization
-- **docker-compose.yml**: Multi-container orchestration
+### Redis Caching
+Summary responses are cached using Redis with TTL to reduce computation and improve performance.
 
-## Resilience Patterns
+Rate Limiting
+Requests are tracked per IP using Redis sorted sets to prevent abuse.
 
-### Caching
-Read-through caching using Redis. Summary computations are cached with TTL to reduce load.
+Circuit Breaker
+External service failures are monitored. When failures exceed threshold:
 
-### Rate Limiting
-Sliding window counter using Redis sorted sets. Limits requests per IP to prevent abuse.
+Circuit opens
 
-### Circuit Breaker
-Three-state pattern (Closed/Open/Half-Open) to handle external service failures gracefully.
+Calls immediately fallback
 
-## Development
-
-To run locally without Docker:
-1. Install dependencies: `pip install -r requirements.txt`
-2. Start Redis: `redis-server`
-3. Run app: `uvicorn src.main:app --reload`
-
-## License
-
-MIT License
+Later transitions to half-open for recovery testing
