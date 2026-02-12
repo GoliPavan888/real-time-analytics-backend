@@ -75,3 +75,4 @@ async def health_check():
         return {"status": "healthy"}
     except:
         raise HTTPException(status_code=503, detail="Service unhealthy")
+
